@@ -21,12 +21,8 @@ class NGramScorer:
 
 
     def score(self, text):
-        score = 0
-        ngrams = self.ngrams.__getitem__
+        ngrams = self.ngrams
+        floor = self.floor
+        L = self.L
 
-        for i in range(len(text) - self.L + 1):
-            if text[i:i + self.L] in self.ngrams:
-                score += ngrams(text[i:i + self.L])
-            else:
-                score += self.floor
-        return score
+        return sum(ngrams.get(text[i:i + L], floor) for i in range(len(text) - L + 1))
