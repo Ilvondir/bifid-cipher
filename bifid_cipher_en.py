@@ -168,24 +168,23 @@ def evolve(population, population_length):
     # Diversity injection
     if k >= population_length // 2:
         population = population[:population_length // 2]
-        diversity = generate_population(population_length // 2)
-        population += diversity
+        population += generate_population(population_length // 2)
         population = sorted(population, key=lambda x: x[0], reverse=True)
         print('Diversity injected')
 
     # Individual learning
-    for i in range(5):
+    for i in range(10):
         population[i] = individual_learning(population[i][1])
 
     population = sorted(population, key=lambda x: x[0], reverse=True)
 
-    print( population[0] )
+    print( population[0:2] )
 
     return population[:population_length], population_length
 
 
 
-def individual_learning(key, wait_to_progress=.01):
+def individual_learning(key, wait_to_progress=.03):
     old_key = np.copy(key) 
     old_value = NGRAM_SCORER.score( decrypt(ENCRYPTED_TEXT, old_key) )
 
@@ -236,4 +235,4 @@ plaintext_score = NGRAM_SCORER.score(plaintext)
 print('Plaintext NGram score:')
 print(plaintext_score)
 
-print(evolutionary_attack(1500, 200))
+print(evolutionary_attack(1000, 200))
