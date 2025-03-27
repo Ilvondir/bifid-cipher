@@ -1,5 +1,4 @@
 from ngram import NGramScorer
-import string
 import numpy as np
 import random
 from copy import deepcopy
@@ -14,7 +13,7 @@ def preprocess_plaintext(plaintext):
     return ''.join([c for c in plaintext if c in BIFID_ALPHABET]).replace('J', 'I').strip()
 
 
-with open('./datasets/english_tests/test1.txt') as f:
+with open('./datasets/english_tests/test3.txt') as f:
     plaintext = f.read()
 
 print('Plaintext:')
@@ -154,8 +153,8 @@ def generate_population(population_length):
 
 
 def evolve(population, population_length):
-    elite = population[:population_length//50]
-    commons = population[population_length//50:]
+    elite = population[:population_length//75]
+    commons = population[population_length//75:]
 
     for _ in range(len(population)):
         child1 = born1(elite)
@@ -178,7 +177,7 @@ def evolve(population, population_length):
 
     population = sorted(population, key=lambda x: x[0], reverse=True)
 
-    print( population[0:2] )
+    print( population[0] )
 
     return population[:population_length], population_length
 
@@ -231,7 +230,7 @@ print(ENCRYPTED_TEXT)
 print('Decrypted text:')
 print(decrypt(ENCRYPTED_TEXT, key))
 
-plaintext_score = NGRAM_SCORER.score(plaintext)
+plaintext_score = round(NGRAM_SCORER.score(plaintext), 2)
 print('Plaintext NGram score:')
 print(plaintext_score)
 
