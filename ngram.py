@@ -4,7 +4,7 @@ class NGramScorer:
     def __init__(self, ngramfile='en_bigrams.csv', sep=','):
         self.ngrams = {}
 
-        with open(f'datasets/{ngramfile}', 'r') as file:
+        with open(f'datasets/{ngramfile}', 'r', encoding='UTF-8') as file:
             lines = file.readlines()
 
         for line in lines:
