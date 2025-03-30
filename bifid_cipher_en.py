@@ -5,7 +5,7 @@ from copy import deepcopy
 import time
 
 BIFID_ALPHABET = 'ABCDEFGHIKLMNOPQRSTUVWXYZ'
-NGRAM_SCORER = NGramScorer('english_bigrams/english_2grams.csv')
+NGRAM_SCORER = NGramScorer('english_bigrams/en_bigrams.csv')
 
 def preprocess_plaintext(plaintext):
     plaintext = plaintext.upper()

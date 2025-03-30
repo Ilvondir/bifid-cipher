@@ -1,7 +1,7 @@
 from math import log10
 
 class NGramScorer:
-    def __init__(self, ngramfile='english_2grams.csv', sep=','):
+    def __init__(self, ngramfile='en_bigrams.csv', sep=','):
         self.ngrams = {}
 
         with open(f'datasets/{ngramfile}', 'r') as file:
@@ -9,7 +9,7 @@ class NGramScorer:
 
         for line in lines:
             key, count = line.split(sep)
-            self.ngrams[key.upper()] = int(count)
+            self.ngrams[key] = int(count)
 
         self.L = len(key)
         self.N = sum(self.ngrams.values())
