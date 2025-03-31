@@ -87,7 +87,7 @@ def crossover(key1, key2, debug=False):
     new_key.fill('')
 
     random_axis = random.randint(0, 1) # 0-rows 1-columns
-    random_size = random.randint(1, 3) # Maks 3 linie
+    random_size = random.randint(2, 4) # Maks 4 linie
     random_start = random.randint(0, new_key.shape[0]-random_size)
 
     random_parent_num = random.randint(0, 1)
@@ -183,8 +183,6 @@ def evolve(population, population_length):
         population.append(commit_key(child1))
         child2 = born2(elite, commons)
         population.append(commit_key(child2))
-        child3 = born2(population[0:1], elite)
-        population.append( commit_key(child3) )
 
     print('Childs created')
 
@@ -333,7 +331,7 @@ print('Plaintext NGram score:')
 print(plaintext_score)
 
 print('Result:')
-print(evolutionary_attack(1000, 200))
+print(evolutionary_attack(5000, 200))
 
 print('Original key:')
 print(key0)
