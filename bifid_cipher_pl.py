@@ -192,17 +192,45 @@ def evolve(population, population_length):
             rand_index_2 = random.randint(101, population_length-1)
             population[rand_index_2] = individual_learning_simulated_annealing(population[rand_index_2][1])
         else:
-            population[i] = individual_learning_hill_climbing(population[i][1])
+            population[i] = shotgun_hill_climbing(population[i][1])
             rand_index_1 = random.randint(11, population_length-1)
-            population[rand_index_1] = individual_learning_hill_climbing(population[rand_index_1][1])
+            population[rand_index_1] = shotgun_hill_climbing(population[rand_index_1][1])
             rand_index_2 = random.randint(101, population_length-1)
-            population[rand_index_2] = individual_learning_hill_climbing(population[rand_index_2][1])
+            population[rand_index_2] = shotgun_hill_climbing(population[rand_index_2][1])
 
     population = sorted(population, key=lambda x: x[0], reverse=True)
 
     print( population[0] )
 
     return population[:population_length], population_length
+
+
+
+def shotgun_hill_climbing(key, wait_to_progress=0.03, timelimit=0.4):
+    best_key = np.copy(key)
+    best_value = NGRAM_SCORER.score(decrypt(ENCRYPTED_TEXT, best_key))
+    t0 = time.time()
+
+    while time.time() - t0 < timelimit:
+        old_key = generate_random_key()
+        old_value = NGRAM_SCORER.score(decrypt(ENCRYPTED_TEXT, old_key))
+        time_to_progress = time.time()
+
+        while time.time() - time_to_progress < wait_to_progress:
+            new_key = change_key(old_key)
+            new_value = NGRAM_SCORER.score(decrypt(ENCRYPTED_TEXT, new_key))
+
+            if old_value < new_value:
+                old_key, old_value = new_key, new_value
+                time_to_progress = time.time()
+
+                # if best_value < new_value:
+                #     best_key, best_value = new_key, new_value
+                #     print([best_value, best_key, decrypt(ENCRYPTED_TEXT, best_key)])
+
+        # print()
+
+    return commit_key(old_key)
 
 
 
@@ -285,6 +313,7 @@ def swap_lines(key):
 
 
 def change_key(key):
+    # return swap_letters(key, 1)
     rand_num = random.random()
 
     if 0 <= rand_num < 0.5:
@@ -329,5 +358,10 @@ print(plaintext_score)
 
 print('Result:')
 print(evolutionary_attack(2500, 300))
+
+# print(key)
+
+
+# print(shotgun_hill_climbing(ENCRYPTED_TEXT))
 
 print(key)
