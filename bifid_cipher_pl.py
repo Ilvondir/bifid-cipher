@@ -82,18 +82,22 @@ def decrypt(encrypted_text, key, debug=False):
 
 
 
-def inheritance(key1, key2, debug=False):
-    if debug: print(f'Key1:\n{key1[1]}')
-    if debug: print(f'Key2:\n{key2[1]}')
-
-    new_key = np.empty_like(key1[1], dtype=key1[1].dtype)
-
-    indexes_of_same_letters = np.where(key1[1] == key2[1])
-
-    if debug: print(f'Indexes of same letters:\n{indexes_of_same_letters}')
-
+def crossover(key1, key2, debug=False):
+    new_key = np.empty_like(key1[1])
     new_key.fill('')
-    new_key[indexes_of_same_letters] = key2[1][indexes_of_same_letters]
+
+    random_axis = random.randint(0, 1) # 0-rows 1-columns
+    random_size = random.randint(1, 3) # Maks 3 linie
+    random_start = random.randint(0, new_key.shape[0]-random_size)
+
+    random_parent_num = random.randint(0, 1)
+    base_parent = key1[1] if random_parent_num == 0 else key2[1]
+
+    if random_axis == 1:
+        new_key[:, random_start:random_start+random_size+1] = base_parent[:, random_start:random_start+random_size+1]
+    else:
+        new_key[random_start:random_start+random_size+1, :] = base_parent[random_start:random_start+random_size+1, :]
+
 
     missing_letters = np.setdiff1d(key1[1], new_key)
     random.shuffle(missing_letters)
@@ -101,7 +105,15 @@ def inheritance(key1, key2, debug=False):
     missing_idx = np.where(new_key == '')
     new_key[missing_idx] = missing_letters[:len(missing_idx[0])]
 
-    if debug: print(f'New key:\n{new_key}')
+
+    if debug:
+        print(f'Key1:\n{key1[1]}')
+        print(f'Key2:\n{key2[1]}')
+        print(f'Axis: {random_axis}')
+        print(f'Size: {random_size}')
+        print(f'Start: {random_start}')
+        print(f'Base parent: {random_parent_num}')
+        print(f'New key:\n{new_key}')
 
     return new_key
 
@@ -109,38 +121,40 @@ def inheritance(key1, key2, debug=False):
 
 
 def commit_key(key):
-    return ( round(NGRAM_SCORER.score( decrypt(ENCRYPTED_TEXT, key) ), 1) , key)
+    return ( NGRAM_SCORER.score( decrypt(ENCRYPTED_TEXT, key) ) , key)
 
 
 
 def born1(population):
     r1, r2 = random.sample(population, 2)
-    return inheritance(r1, r2)
+    return crossover(r1, r2)
 
 
 
 def born2(population1, population2):
     r1 = random.choice(population1)
     r2 = random.choice(population2)
-    return inheritance(r1, r2)
+    return crossover(r1, r2)
 
 
 
 def remove_duplicates(population):
-    temp_population = deepcopy(population)
-
-    sorted_ = sorted(temp_population, key=lambda x: x[0], reverse=True)
-    new_population = [sorted_[0]]
-
+    seen = set()
+    new_population = []
     k = 0
-    for i in range(1, len(sorted_)):
-        if sorted_[i][0] != sorted_[i-1][0]:
-            new_population.append(sorted_[i])
+
+    for elem in population:
+        key_tuple = tuple(elem[1].flatten())
+        
+        if key_tuple not in seen:
+            seen.add(key_tuple)
+            new_population.append(elem)
         else:
             k += 1
 
-    print(f'Removed duplicates: {k}')
+    new_population = sorted(population, key=lambda x: x[0], reverse=True)
 
+    print(f"Removed duplicates: {k}")
     return k, new_population
 
 
@@ -169,11 +183,15 @@ def evolve(population, population_length):
         population.append(commit_key(child1))
         child2 = born2(elite, commons)
         population.append(commit_key(child2))
+        child3 = born2(population[0:1], elite)
+        population.append( commit_key(child3) )
+
+    print('Childs created')
 
     k, population = remove_duplicates(population)
 
     # Diversity injection
-    if k >= 100:
+    if k >= population_length // 2:
         population = population[:population_length // 2]
         population += generate_population(population_length // 2)
         population = sorted(population, key=lambda x: x[0], reverse=True)
@@ -184,19 +202,15 @@ def evolve(population, population_length):
     
     print(f'Individual learning method: {'Simulated Annealing' if is_even else 'Hill Climbing'}')
 
-    for i in range(10):
+    for i in range(3):
         if is_even:
             population[i] = individual_learning_simulated_annealing(population[i][1])
-            rand_index_1 = random.randint(11, 100)
+            rand_index_1 = random.randint(4, 15)
             population[rand_index_1] = individual_learning_simulated_annealing(population[rand_index_1][1])
-            rand_index_2 = random.randint(101, population_length-1)
-            population[rand_index_2] = individual_learning_simulated_annealing(population[rand_index_2][1])
         else:
-            population[i] = shotgun_hill_climbing(population[i][1])
-            rand_index_1 = random.randint(11, population_length-1)
-            population[rand_index_1] = shotgun_hill_climbing(population[rand_index_1][1])
-            rand_index_2 = random.randint(101, population_length-1)
-            population[rand_index_2] = shotgun_hill_climbing(population[rand_index_2][1])
+            population[i] = individual_learning_hill_climbing(population[i][1])
+            rand_index_1 = random.randint(4, 15)
+            population[rand_index_1] = individual_learning_hill_climbing(population[rand_index_1][1])
 
     population = sorted(population, key=lambda x: x[0], reverse=True)
 
@@ -206,35 +220,7 @@ def evolve(population, population_length):
 
 
 
-def shotgun_hill_climbing(key, wait_to_progress=0.03, timelimit=0.4):
-    best_key = np.copy(key)
-    best_value = NGRAM_SCORER.score(decrypt(ENCRYPTED_TEXT, best_key))
-    t0 = time.time()
-
-    while time.time() - t0 < timelimit:
-        old_key = generate_random_key()
-        old_value = NGRAM_SCORER.score(decrypt(ENCRYPTED_TEXT, old_key))
-        time_to_progress = time.time()
-
-        while time.time() - time_to_progress < wait_to_progress:
-            new_key = change_key(old_key)
-            new_value = NGRAM_SCORER.score(decrypt(ENCRYPTED_TEXT, new_key))
-
-            if old_value < new_value:
-                old_key, old_value = new_key, new_value
-                time_to_progress = time.time()
-
-                # if best_value < new_value:
-                #     best_key, best_value = new_key, new_value
-                #     print([best_value, best_key, decrypt(ENCRYPTED_TEXT, best_key)])
-
-        # print()
-
-    return commit_key(old_key)
-
-
-
-def individual_learning_hill_climbing(key, wait_to_progress=.012):
+def individual_learning_hill_climbing(key, wait_to_progress=.02):
     old_key = np.copy(key) 
     old_value = NGRAM_SCORER.score( decrypt(ENCRYPTED_TEXT, old_key) )
 
@@ -252,7 +238,7 @@ def individual_learning_hill_climbing(key, wait_to_progress=.012):
 
 
 
-def individual_learning_simulated_annealing(key, initial_temperature=10, cooling_rate=0.97):
+def individual_learning_simulated_annealing(key, initial_temperature=10, cooling_rate=0.96):
     old_key = np.copy(key) 
     old_value = NGRAM_SCORER.score( decrypt(ENCRYPTED_TEXT, old_key) )
     temperature = initial_temperature
@@ -313,17 +299,7 @@ def swap_lines(key):
 
 
 def change_key(key):
-    # return swap_letters(key, 1)
-    rand_num = random.random()
-
-    if 0 <= rand_num < 0.5:
-        return swap_letters(key, 1)
-    elif 0.5 <= rand_num < 0.75:
-        return swap_letters(key, 2)
-    elif 0.75 <= rand_num < 0.9:
-        return swap_letters(key, 4)
-    else:
-        return swap_lines(key)
+    return swap_letters(key, 1)
 
     
 
@@ -341,27 +317,23 @@ def evolutionary_attack(population_length, max_iters=100):
 
 
 
-key = generate_random_key()
+key0 = generate_random_key()
 print('Key:')
-print(key)
+print(key0)
 
-ENCRYPTED_TEXT = encrypt(plaintext, key)
+ENCRYPTED_TEXT = encrypt(plaintext, key0)
 print('Encrypted text:')
 print(ENCRYPTED_TEXT)
 
 print('Decrypted text:')
-print(decrypt(ENCRYPTED_TEXT, key))
+print(decrypt(ENCRYPTED_TEXT, key0))
 
 plaintext_score = round(NGRAM_SCORER.score(plaintext), 2)
 print('Plaintext NGram score:')
 print(plaintext_score)
 
 print('Result:')
-print(evolutionary_attack(2500, 300))
+print(evolutionary_attack(1000, 200))
 
-# print(key)
-
-
-# print(shotgun_hill_climbing(ENCRYPTED_TEXT))
-
-print(key)
+print('Original key:')
+print(key0)
