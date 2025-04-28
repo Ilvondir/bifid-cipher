@@ -1,15 +1,18 @@
 from pathlib import Path
 import re
 
-LANG = 'pl'
+LANG = 'ca'
 LENGTH_OF_NGRAMS = 2
 
 if LANG == 'en':
     alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
     base_folder = 'datasets/english_bigrams'
-else:
+elif LANG == 'pl':
     alphabet = 'AĄBCĆDEĘFGHIJKLŁMNŃOÓPQRSŚTUVWXYZŹŻ'
     base_folder = 'datasets/polish_bigrams'
+else:
+    alphabet = 'AÀBCÇDEÉÈFGHIÍÏJKLMNOÓÒPQRSTUÚÜVWXYZ'
+    base_folder = 'datasets/catala_bigrams'
 
 path = Path(base_folder + '/books')
 
