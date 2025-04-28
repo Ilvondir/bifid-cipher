@@ -14,7 +14,7 @@ def preprocess_plaintext(plaintext):
     return ''.join([c for c in plaintext if c in BIFID_ALPHABET]).replace('J', 'I').strip()
 
 
-with open('./datasets/english_tests/test3.txt', encoding='UTF-8') as f:
+with open('./datasets/english_tests/test1.txt', encoding='UTF-8') as f:
     plaintext = f.read()
 
 print('Plaintext:')
@@ -179,16 +179,14 @@ last_best_values = []
 def evolve(population, population_length):
     global last_best_values
 
-    elite = population[:population_length//50]
-    commons = population[population_length//50:]
+    elite = population[:population_length//25]
+    commons = population[population_length//25:]
 
     for _ in range(len(population)):
         child1 = born1(elite)
         population.append(commit_key(child1))
         child2 = born2(elite, commons)
         population.append(commit_key(child2))
-        # child3 = born2(population[0:1], elite)
-        # population.append( commit_key(child3) )
 
     print('Childs created')
 
@@ -205,19 +203,17 @@ def evolve(population, population_length):
     last_best_values.append(population[0][0])
 
     # Entire mutation
-    if len(last_best_values) >= 5:
-        if np.all([x == last_best_values[-5] for x in last_best_values[-5:]]):
+    if len(last_best_values) >= 2:
+        if np.all([x == last_best_values[-2] for x in last_best_values[-2:]]):
             population = population[:population_length]
 
-            if len(last_best_values) >= 15:
-                if np.all([x == last_best_values[-15] for x in last_best_values[-15:]]):
-                    population[0] = commit_key(swap_letters(population[0][1], 5))
-                    print('Best key mutated')
+            for i in range(population_length // 100, population_length // 2):
+                population[i] = commit_key(swap_letters(population[i][1], 2))
 
-            for i in range(1, population_length):
-                population[i] = commit_key(swap_letters(population[i][1], 5))
+            population.insert(1, commit_key(swap_letters(population[0][1], 2)))
     
             print('Population mutated')
+            last_best_values = []
 
             population = sorted(population, key=lambda x: x[0], reverse=True)
     
@@ -347,9 +343,7 @@ print('Plaintext NGram score:')
 print(plaintext_score)
 
 print('\nResult:')
-print(evolutionary_attack(1000, 200))
+print(evolutionary_attack(4000, 200))
 
 print('Original key:')
 print(key0)
-
-

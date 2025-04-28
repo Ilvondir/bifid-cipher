@@ -84,34 +84,44 @@ def decrypt(encrypted_text, key, debug=False):
 
 def crossover(key1, key2, debug=False):
     new_key = np.empty_like(key1[1])
-    new_key.fill('')
 
     random_axis = random.randint(0, 1) # 0-rows 1-columns
-    random_size = random.randint(2, 4) # Maks 4 linie
-    random_start = random.randint(0, new_key.shape[0]-random_size)
-
+    lines_to_copy = random.sample(range(new_key.shape[0]), random.randint(1, 3))
+    remaining_lines = [i for i in range(new_key.shape[0]) if i not in lines_to_copy]
     random_parent_num = random.randint(0, 1)
+
     base_parent = key1[1] if random_parent_num == 0 else key2[1]
+    second_parent = key1[1] if random_parent_num == 1 else key2[1]
 
     if random_axis == 1:
-        new_key[:, random_start:random_start+random_size+1] = base_parent[:, random_start:random_start+random_size+1]
+        new_key[:, lines_to_copy] = base_parent[:, lines_to_copy]
+        new_key[:, remaining_lines] = second_parent[:, remaining_lines]
     else:
-        new_key[random_start:random_start+random_size+1, :] = base_parent[random_start:random_start+random_size+1, :]
+        new_key[lines_to_copy, :] = base_parent[lines_to_copy, :]
+        new_key[remaining_lines, :] = second_parent[remaining_lines, :]
 
+    
+    missing_letters = missing = np.setdiff1d(base_parent, new_key)
 
-    missing_letters = np.setdiff1d(key1[1], new_key)
-    random.shuffle(missing_letters)
+    flat_key = new_key.flatten()
+    unique_elements, counts = np.unique(flat_key, return_counts=True)
+    duplicates = unique_elements[counts > 1]
 
-    missing_idx = np.where(new_key == '')
-    new_key[missing_idx] = missing_letters[:len(missing_idx[0])]
+    duplicates_positions = {}
+    for letter in duplicates:
+        duplicates_positions[letter] = list(zip(*np.where(new_key == letter)))
 
+    for letter, positions in duplicates_positions.items():
+        new_key[positions[1][0], positions[1][1]] = missing_letters[0]
+        missing_letters = missing_letters[1:]
 
     if debug:
         print(f'Key1:\n{key1[1]}')
         print(f'Key2:\n{key2[1]}')
         print(f'Axis: {random_axis}')
-        print(f'Size: {random_size}')
-        print(f'Start: {random_start}')
+        print(f'To copy from base: {lines_to_copy}')
+        print(f'Remaining: {remaining_lines}')
+        print(f'Missing: {missing}')
         print(f'Base parent: {random_parent_num}')
         print(f'New key:\n{new_key}')
 
@@ -152,7 +162,7 @@ def remove_duplicates(population):
         else:
             k += 1
 
-    new_population = sorted(population, key=lambda x: x[0], reverse=True)
+    new_population = sorted(new_population, key=lambda x: x[0], reverse=True)
 
     print(f"Removed duplicates: {k}")
     return k, new_population
@@ -170,13 +180,13 @@ def generate_population(population_length):
 
 
 
-is_even = True
+last_best_values = []
 
 def evolve(population, population_length):
-    global is_even
+    global last_best_values
 
-    elite = population[:population_length//50]
-    commons = population[population_length//50:]
+    elite = population[:population_length//25]
+    commons = population[population_length//25:]
 
     for _ in range(len(population)):
         child1 = born1(elite)
@@ -195,20 +205,30 @@ def evolve(population, population_length):
         population = sorted(population, key=lambda x: x[0], reverse=True)
         print('Diversity injected')
 
-    # Individual learning
-    is_even = not is_even
     
-    print(f'Individual learning method: {'Simulated Annealing' if is_even else 'Hill Climbing'}')
+    last_best_values.append(population[0][0])
 
+    # Entire mutation
+    if len(last_best_values) >= 2:
+        if np.all([x == last_best_values[-2] for x in last_best_values[-2:]]):
+            population = population[:population_length]
+
+            for i in range(population_length // 100, population_length // 2):
+                population[i] = commit_key(swap_letters(population[i][1], 2))
+
+            population.insert(1, commit_key(swap_letters(population[0][1], 2)))
+    
+            print('Population mutated')
+            last_best_values = []
+
+            population = sorted(population, key=lambda x: x[0], reverse=True)
+
+
+    # Individual learning
     for i in range(3):
-        if is_even:
-            population[i] = individual_learning_simulated_annealing(population[i][1])
-            rand_index_1 = random.randint(4, 15)
-            population[rand_index_1] = individual_learning_simulated_annealing(population[rand_index_1][1])
-        else:
-            population[i] = individual_learning_hill_climbing(population[i][1])
-            rand_index_1 = random.randint(4, 15)
-            population[rand_index_1] = individual_learning_hill_climbing(population[rand_index_1][1])
+        population[i] = individual_learning_hill_climbing(population[i][1])
+        rand_index_1 = random.randint(4, 15)
+        population[rand_index_1] = individual_learning_hill_climbing(population[rand_index_1][1])
 
     population = sorted(population, key=lambda x: x[0], reverse=True)
 
@@ -267,8 +287,8 @@ def individual_learning_simulated_annealing(key, initial_temperature=10, cooling
 
 
 def swap_letters(key, num_swaps=1):
-    new_key = key.copy()
-    all_indices = [(i, j) for i in range(key.shape[0]) for j in range(key.shape[1])]
+    new_key = deepcopy(key)
+    all_indices = [(i, j) for i in range(new_key.shape[0]) for j in range(new_key.shape[1])]
     
     selected_indices = random.sample(all_indices, 2 * num_swaps)
     
@@ -281,7 +301,7 @@ def swap_letters(key, num_swaps=1):
 
 
 def swap_lines(key):
-    new_key = key.copy()
+    new_key = deepcopy(key)
 
     if random.random() >= 0.5:
         cols = list(range(key.shape[1]))
@@ -326,12 +346,12 @@ print(ENCRYPTED_TEXT)
 print('Decrypted text:')
 print(decrypt(ENCRYPTED_TEXT, key0))
 
-plaintext_score = round(NGRAM_SCORER.score(plaintext), 2)
+plaintext_score = NGRAM_SCORER.score(plaintext)
 print('Plaintext NGram score:')
 print(plaintext_score)
 
 print('Result:')
-print(evolutionary_attack(5000, 200))
+print(evolutionary_attack(4000, 200))
 
 print('Original key:')
 print(key0)
