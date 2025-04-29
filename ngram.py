@@ -17,7 +17,7 @@ class NGramScorer:
         for key in self.ngrams.keys():
             self.ngrams[key] = log10(float(self.ngrams[key]) / self.N)
 
-        self.floor = log10(0.01 / self.N)
+        self.floor = log10(0.001 / self.N)
 
 
     def score(self, text):

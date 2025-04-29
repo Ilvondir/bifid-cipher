@@ -7,9 +7,6 @@ LENGTH_OF_NGRAMS = 2
 if LANG == 'en':
     alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
     base_folder = 'datasets/english_bigrams'
-elif LANG == 'pl':
-    alphabet = 'AĄBCĆDEĘFGHIJKLŁMNŃOÓPQRSŚTUVWXYZŹŻ'
-    base_folder = 'datasets/polish_bigrams'
 else:
     alphabet = 'AÀBCÇDEÉÈFGHIÍÏJKLMNOÓÒPQRSTUÚÜVWXYZ'
     base_folder = 'datasets/catala_bigrams'
