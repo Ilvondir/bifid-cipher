@@ -14,7 +14,7 @@ def preprocess_plaintext(plaintext):
     return ''.join([c for c in plaintext if c in BIFID_ALPHABET]).replace('J', 'I').strip()
 
 
-with open('./datasets/english_tests/test1.txt', encoding='UTF-8') as f:
+with open('./datasets/english_tests/test3.txt', encoding='UTF-8') as f:
     plaintext = f.read()
 
 print('Plaintext:')
@@ -221,7 +221,7 @@ def evolve(population, population_length):
     # Individual learning
     for i in range(3):
         population[i] = individual_learning_hill_climbing(population[i][1])
-        rand_index_1 = random.randint(4, 15)
+        rand_index_1 = random.randint(3, 15)
         population[rand_index_1] = individual_learning_hill_climbing(population[rand_index_1][1])
 
     population = sorted(population, key=lambda x: x[0], reverse=True)
@@ -312,7 +312,12 @@ def swap_lines(key):
 
 
 def change_key(key):
-    return swap_letters(key, 1)
+    r = random.random()
+
+    if r <= 0.9:
+        return swap_letters(key, 1)
+    else: 
+        return swap_lines(key)
     
 
 def evolutionary_attack(population_length, max_iters=100):
@@ -343,7 +348,7 @@ print('Plaintext NGram score:')
 print(plaintext_score)
 
 print('\nResult:')
-print(evolutionary_attack(4000, 200))
+print(evolutionary_attack(1000, 500))
 
 print('Original key:')
 print(key0)

@@ -227,7 +227,7 @@ def evolve(population, population_length):
     # Individual learning
     for i in range(3):
         population[i] = individual_learning_hill_climbing(population[i][1])
-        rand_index_1 = random.randint(4, 15)
+        rand_index_1 = random.randint(3, 15)
         population[rand_index_1] = individual_learning_hill_climbing(population[rand_index_1][1])
 
     population = sorted(population, key=lambda x: x[0], reverse=True)
@@ -317,7 +317,12 @@ def swap_lines(key):
 
 
 def change_key(key):
-    return swap_letters(key, 1)
+    r = random.random()
+
+    if r <= 0.9:
+        return swap_letters(key, 1)
+    else: 
+        return swap_lines(key)
 
     
 
@@ -351,7 +356,7 @@ print('Plaintext NGram score:')
 print(plaintext_score)
 
 print('Result:')
-print(evolutionary_attack(2500, 500))
+print(evolutionary_attack(1000, 500))
 
 print('Original key:')
 print(key0)
