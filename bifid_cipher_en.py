@@ -1,3 +1,18 @@
+"""
+Michal Komsa
+Bifid Cipher
+https://mattomatti.com/pl/a35bk
+
+Evolutionary attack with 
+    - Diversity Injection
+
+    - Entire Mutation
+
+    - Individual Learning
+    
+"""
+
+
 from ngram import NGramScorer
 import numpy as np
 import random
@@ -14,14 +29,6 @@ def preprocess_plaintext(plaintext):
     return ''.join([c for c in plaintext if c in BIFID_ALPHABET]).replace('J', 'I').strip()
 
 
-with open('./datasets/english_tests/test3.txt', encoding='UTF-8') as f:
-    plaintext = f.read()
-
-print('Plaintext:')
-plaintext = preprocess_plaintext(plaintext)
-print(plaintext)
-
-
 
 def generate_random_key():
     random_key = random.sample(BIFID_ALPHABET, len(BIFID_ALPHABET))
@@ -29,14 +36,14 @@ def generate_random_key():
 
 
 
-def encrypt(plaintext, key, debug=False):
+def encrypt(plaintext, key, verbose=False):
 
     coords = []
     for c in plaintext:
         result = np.where(key == c)
         coords.append( str(result[0][0]+1) + str(result[1][0]+1) )
 
-    if debug: print(f'Real coords:\n{coords}')
+    if verbose: print(f'Real coords:\n{coords}')
     
     new_letter_coords = []
 
@@ -48,18 +55,18 @@ def encrypt(plaintext, key, debug=False):
                 new_letter_coords.append(current_value)
                 current_value = ''
 
-    if debug: print(f'Encryption coords:\n{new_letter_coords}')
+    if verbose: print(f'Encryption coords:\n{new_letter_coords}')
 
     return ''.join([key[int(coord[0])-1][int(coord[1])-1] for coord in new_letter_coords])
 
 
 
-def decrypt(encrypted_text, key, debug=False):
+def decrypt(encrypted_text, key, verbose=False):
 
     char_to_coords = {key[i, j]: f"{i+1}{j+1}" for i in range(key.shape[0]) for j in range(key.shape[1])}
     coords = [char_to_coords[c] for c in encrypted_text]
 
-    if debug: print(f'Encryption coords:\n{coords}')
+    if verbose: print(f'Encryption coords:\n{coords}')
 
     new_letter_coords = []
     total_len = len(coords) * 2
@@ -72,14 +79,14 @@ def decrypt(encrypted_text, key, debug=False):
         else:  
             new_letter_coords[i - (total_len - len(coords))] += coords[original_index][coord_part]
 
-    if debug:
+    if verbose:
         print(f'Decryption coords:\n{new_letter_coords}')
 
     return ''.join(key[int(coord[0])-1, int(coord[1])-1] for coord in new_letter_coords)
 
 
 
-def crossover(key1, key2, debug=False):
+def crossover(key1, key2, verbose=False):
     new_key = np.empty_like(key1[1])
 
     random_axis = random.randint(0, 1) # 0-rows 1-columns
@@ -112,7 +119,7 @@ def crossover(key1, key2, debug=False):
         new_key[positions[1][0], positions[1][1]] = missing_letters[0]
         missing_letters = missing_letters[1:]
 
-    if debug:
+    if verbose:
         print(f'Key1:\n{key1[1]}')
         print(f'Key2:\n{key2[1]}')
         print(f'Axis: {random_axis}')
@@ -143,7 +150,7 @@ def born2(population1, population2):
 
 
 
-def remove_duplicates(population):
+def remove_duplicates(population, verbose=True):
     seen = set()
     new_population = []
     k = 0
@@ -159,7 +166,7 @@ def remove_duplicates(population):
 
     new_population = sorted(new_population, key=lambda x: x[0], reverse=True)
 
-    print(f"Removed duplicates: {k}")
+    if verbose: print(f"Removed duplicates: {k}")
     return k, new_population
 
 
@@ -176,11 +183,11 @@ def generate_population(population_length):
 
 last_best_values = []
 
-def evolve(population, population_length):
+def evolve(population, population_length, verbose=True):
     global last_best_values
 
-    elite = population[:population_length//25]
-    commons = population[population_length//25:]
+    elite = population[:population_length//20]
+    commons = population[population_length//20:]
 
     for _ in range(len(population)):
         child1 = born1(elite)
@@ -188,16 +195,18 @@ def evolve(population, population_length):
         child2 = born2(elite, commons)
         population.append(commit_key(child2))
 
-    print('Childs created')
+    if verbose: print('Childs created')
 
-    k, population = remove_duplicates(population)
+    k, population = remove_duplicates(population, verbose)
+    injection = False
 
     # Diversity injection
     if k >= population_length//2:
         population = population[:population_length // 2]
         population += generate_population(population_length // 2)
         population = sorted(population, key=lambda x: x[0], reverse=True)
-        print('Diversity injected')
+        injection = True
+        if verbose: print('Diversity injected')
 
 
     last_best_values.append(population[0][0])
@@ -207,13 +216,13 @@ def evolve(population, population_length):
         if np.all([x == last_best_values[-2] for x in last_best_values[-2:]]):
             population = population[:population_length]
 
-            for i in range(population_length // 100, population_length // 2):
-                population[i] = commit_key(swap_letters(population[i][1], 2))
+            for i in range(population_length // 50, population_length // 2 if injection else population_length):
+                population[i] = commit_key(change_key(population[i][1], probs=[0, 0.7, 0.9, 1]))
 
-            population.insert(1, commit_key(swap_letters(population[0][1], 2)))
+            population.insert(1, commit_key(change_key(population[0][1], probs=[0, 0.7, 0.9, 1])))
     
-            print('Population mutated')
-            last_best_values = []
+            if verbose: print('Population mutated')
+            last_best_values = [last_best_values[-1]]
 
             population = sorted(population, key=lambda x: x[0], reverse=True)
     
@@ -221,18 +230,18 @@ def evolve(population, population_length):
     # Individual learning
     for i in range(3):
         population[i] = individual_learning_hill_climbing(population[i][1])
-        rand_index_1 = random.randint(3, 15)
+        rand_index_1 = random.randint(3, population_length // 50)
         population[rand_index_1] = individual_learning_hill_climbing(population[rand_index_1][1])
 
     population = sorted(population, key=lambda x: x[0], reverse=True)
 
-    print( population[0] )
+    if verbose: print( population[0] )
 
     return population[:population_length], population_length
 
 
 
-def individual_learning_hill_climbing(key, wait_to_progress=.02):
+def individual_learning_hill_climbing(key, wait_to_progress=.025):
     old_key = np.copy(key) 
     old_value = NGRAM_SCORER.score( decrypt(ENCRYPTED_TEXT, old_key) )
 
@@ -242,7 +251,7 @@ def individual_learning_hill_climbing(key, wait_to_progress=.02):
         new_key = change_key(old_key)
         new_value = NGRAM_SCORER.score( decrypt(ENCRYPTED_TEXT, new_key) )
 
-        if old_value < new_value:
+        if old_value <= new_value:
             old_key, old_value = new_key, new_value
             deadline = time.time() + wait_to_progress
 
@@ -309,46 +318,58 @@ def swap_lines(key):
 
     return new_key
 
+def shiftline(key):
+    new_key = deepcopy(key)
+
+    if random.random() < 0.5:
+        row_idx = random.randint(0, key.shape[0] - 1)
+        shift_amount = random.randint(1, 3)
+        new_key[row_idx] = np.roll(new_key[row_idx], shift_amount)
+    else:
+        col_idx = random.randint(0, key.shape[1] - 1)
+        shift_amount = random.randint(1, 3)
+        new_key[:, col_idx] = np.roll(new_key[:, col_idx], shift_amount)
+
+    return new_key
 
 
-def change_key(key):
+
+def change_key(key, probs=[0.7, 0.8, 0.9, 1]):
     r = random.random()
 
-    if r <= 0.9:
+    if r <= probs[0]:
         return swap_letters(key, 1)
+    elif r <= probs[1]:
+        return swap_letters(key, 3)
+    elif r <= probs[2]:
+        return shiftline(key)
     else: 
         return swap_lines(key)
     
 
-def evolutionary_attack(population_length, max_iters=100):
+def evolutionary_attack(population_length, max_iters=100, verbose=True):
+    global ENCRYPTED_TEXT, plaintext_score, plaintext
+
+    key0 = generate_random_key()
+    ENCRYPTED_TEXT = encrypt(plaintext, key0)
+
     population = generate_population(population_length)
 
     i = 0
     while i < max_iters:
-        print(f'\nEPOCH {i+1} ')
-        population, population_length = evolve(population, population_length)
+        if verbose: print(f'\nEPOCH {i+1} ')
+        population, population_length = evolve(population, population_length, verbose)
         i += 1
         if population[0][0] >= plaintext_score: break
 
     return population[0][0], population[0][1], decrypt(ENCRYPTED_TEXT, population[0][1])
 
+
+with open('./datasets/english_tests/test.txt', encoding='UTF-8') as f:
+        plaintext = f.read()
+plaintext = preprocess_plaintext(plaintext)
 key0 = generate_random_key()
-print('Original key:')
-print(key0)
-
 ENCRYPTED_TEXT = encrypt(plaintext, key0)
-print('Encrypted text:')
-print(ENCRYPTED_TEXT)
-
-print('Decrypted text:')
-print(decrypt(ENCRYPTED_TEXT, key0))
-
 plaintext_score = NGRAM_SCORER.score(plaintext)
-print('Plaintext NGram score:')
+print(len(plaintext))
 print(plaintext_score)
-
-print('\nResult:')
-print(evolutionary_attack(1000, 500))
-
-print('Original key:')
-print(key0)

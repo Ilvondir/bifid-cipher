@@ -1,7 +1,7 @@
 from pathlib import Path
 import re
 
-LANG = 'ca'
+LANG = 'en'
 LENGTH_OF_NGRAMS = 2
 
 if LANG == 'en':

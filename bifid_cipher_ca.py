@@ -1,3 +1,14 @@
+"""
+Michal Komsa
+Bifid Cipher
+https://mattomatti.com/pl/a35bk
+Evolutionary attack with 
+    Diversity Injection
+    Entire Mutation
+    Individual Learning
+"""
+
+
 from ngram import NGramScorer
 import numpy as np
 import random
@@ -12,18 +23,6 @@ NGRAM_SCORER = NGramScorer('catala_bigrams/ca_bigrams.csv')
 def preprocess_plaintext(plaintext):
     plaintext = plaintext.upper().replace('?', '')
     return ''.join([c for c in plaintext if c in BIFID_ALPHABET]).strip()
-
-
-
-with open('./datasets/catala_tests/test3.txt', 'r', encoding='UTF-8') as f:
-    plaintext = f.read()
-
-
-
-print('Plaintext:')
-plaintext = preprocess_plaintext(plaintext)
-print(plaintext)
-
 
 
 def generate_random_key():
@@ -185,8 +184,8 @@ last_best_values = []
 def evolve(population, population_length):
     global last_best_values
 
-    elite = population[:population_length//25]
-    commons = population[population_length//25:]
+    elite = population[:population_length//20]
+    commons = population[population_length//20:]
 
     for _ in range(len(population)):
         child1 = born1(elite)
@@ -197,12 +196,14 @@ def evolve(population, population_length):
     print('Childs created')
 
     k, population = remove_duplicates(population)
+    injection = False
 
     # Diversity injection
     if k >= population_length // 2:
         population = population[:population_length // 2]
         population += generate_population(population_length // 2)
         population = sorted(population, key=lambda x: x[0], reverse=True)
+        injection = True
         print('Diversity injected')
 
     
@@ -213,13 +214,13 @@ def evolve(population, population_length):
         if np.all([x == last_best_values[-2] for x in last_best_values[-2:]]):
             population = population[:population_length]
 
-            for i in range(population_length // 100, population_length // 2):
-                population[i] = commit_key(swap_letters(population[i][1], 2))
+            for i in range(population_length // 100, population_length // 2 if injection else population_length):
+                population[i] = commit_key(change_key(population[i][1], probs=[0, 0.7, 0.9, 1]))
 
-            population.insert(1, commit_key(swap_letters(population[0][1], 2)))
+            population.insert(1, commit_key(change_key(population[0][1], probs=[0, 0.7, 0.9, 1])))
     
             print('Population mutated')
-            last_best_values = []
+            last_best_values = [last_best_values[-1]]
 
             population = sorted(population, key=lambda x: x[0], reverse=True)
 
@@ -227,7 +228,7 @@ def evolve(population, population_length):
     # Individual learning
     for i in range(3):
         population[i] = individual_learning_hill_climbing(population[i][1])
-        rand_index_1 = random.randint(3, 15)
+        rand_index_1 = random.randint(3, population_length // 50)
         population[rand_index_1] = individual_learning_hill_climbing(population[rand_index_1][1])
 
     population = sorted(population, key=lambda x: x[0], reverse=True)
@@ -238,7 +239,7 @@ def evolve(population, population_length):
 
 
 
-def individual_learning_hill_climbing(key, wait_to_progress=.02):
+def individual_learning_hill_climbing(key, wait_to_progress=.025):
     old_key = np.copy(key) 
     old_value = NGRAM_SCORER.score( decrypt(ENCRYPTED_TEXT, old_key) )
 
@@ -248,42 +249,11 @@ def individual_learning_hill_climbing(key, wait_to_progress=.02):
         new_key = change_key(old_key)
         new_value = NGRAM_SCORER.score( decrypt(ENCRYPTED_TEXT, new_key) )
 
-        if old_value < new_value:
+        if old_value <= new_value:
             old_key, old_value = new_key, new_value
             deadline = time.time() + wait_to_progress
 
     return commit_key(old_key)
-
-
-
-def individual_learning_simulated_annealing(key, initial_temperature=10, cooling_rate=0.96):
-    old_key = np.copy(key) 
-    old_value = NGRAM_SCORER.score( decrypt(ENCRYPTED_TEXT, old_key) )
-    temperature = initial_temperature
-
-    best_key = old_key
-    best_value = old_value
-
-    while temperature > .3:
-        new_key = change_key(old_key)
-        new_value = NGRAM_SCORER.score( decrypt(ENCRYPTED_TEXT, new_key) )
-
-        if new_value > old_value:
-            old_key = new_key
-            old_value = new_value
-        else:
-            if random.random() < math.exp((new_value - old_value) / temperature):
-                old_key = new_key
-                old_value = new_value
-
-        if old_value > best_value:
-            best_key = old_key
-            best_value = old_value
-
-        temperature *= cooling_rate
-
-    return commit_key(best_key)
-
 
 
 def swap_letters(key, num_swaps=1):
@@ -315,18 +285,43 @@ def swap_lines(key):
     return new_key
 
 
+def shiftline(key):
+    new_key = deepcopy(key)
 
-def change_key(key):
+    if random.random() < 0.5:
+        row_idx = random.randint(0, key.shape[0] - 1)
+        shift_amount = random.randint(1, 4)
+        new_key[row_idx] = np.roll(new_key[row_idx], shift_amount)
+    else:
+        col_idx = random.randint(0, key.shape[1] - 1)
+        shift_amount = random.randint(1, 4)
+        new_key[:, col_idx] = np.roll(new_key[:, col_idx], shift_amount)
+
+    return new_key
+
+
+
+def change_key(key, probs=[0.7, 0.8, 0.9, 1]):
     r = random.random()
 
-    if r <= 0.9:
+    if r <= probs[0]:
         return swap_letters(key, 1)
+    elif r <= probs[1]:
+        return swap_letters(key, 3)
+    elif r <= probs[2]:
+        return shiftline(key)
     else: 
         return swap_lines(key)
-
     
 
-def evolutionary_attack(population_length, max_iters=100):
+
+def evolutionary_attack(population_length,  max_iters=100):
+    global ENCRYPTED_TEXT, plaintext_score, plaintext
+
+    key0 = generate_random_key()
+    ENCRYPTED_TEXT = encrypt(plaintext, key0)
+
+
     population = generate_population(population_length)
 
     i = 0
@@ -340,23 +335,11 @@ def evolutionary_attack(population_length, max_iters=100):
 
 
 
+with open('./datasets/catala_tests/test3.txt', 'r', encoding='UTF-8') as f:
+    plaintext = f.read()
+plaintext = preprocess_plaintext(plaintext)
 key0 = generate_random_key()
-print('Key:')
-print(key0)
-
 ENCRYPTED_TEXT = encrypt(plaintext, key0)
-print('Encrypted text:')
-print(ENCRYPTED_TEXT)
-
-print('Decrypted text:')
-print(decrypt(ENCRYPTED_TEXT, key0))
-
 plaintext_score = NGRAM_SCORER.score(plaintext)
-print('Plaintext NGram score:')
+print(len(plaintext))
 print(plaintext_score)
-
-print('Result:')
-print(evolutionary_attack(1000, 500))
-
-print('Original key:')
-print(key0)
