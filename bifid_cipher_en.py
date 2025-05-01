@@ -3,13 +3,13 @@ Michal Komsa
 Bifid Cipher
 https://mattomatti.com/pl/a35bk
 
-Evolutionary attack with 
+Evolutionary attack with:
     - Diversity Injection
-
+    When the number of duplicated keys exceeds half the population size, half of the population is replaced with random keys.
     - Entire Mutation
-
+    When the best key's score stagnates for 2 epochs, a portion of the population undergoes random mutation.
     - Individual Learning
-    
+    Six keys are improved using hill climbing during each epoch.
 """
 
 
