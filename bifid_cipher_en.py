@@ -219,7 +219,8 @@ def evolve(population, population_length, verbose=True):
             for i in range(population_length // 50, population_length // 2 if injection else population_length):
                 population[i] = commit_key(change_key(population[i][1], probs=[0, 0.7, 0.9, 1]))
 
-            population.insert(1, commit_key(change_key(population[0][1], probs=[0, 0.7, 0.9, 1])))
+            for i in range(0, population_length // 50):
+                population.append(commit_key(change_key(population[0][1], probs=[0, 0.7, 0.9, 1])))
     
             if verbose: print('Population mutated')
             last_best_values = [last_best_values[-1]]
@@ -373,3 +374,5 @@ ENCRYPTED_TEXT = encrypt(plaintext, key0)
 plaintext_score = NGRAM_SCORER.score(plaintext)
 print(len(plaintext))
 print(plaintext_score)
+
+evolutionary_attack(500, 100)

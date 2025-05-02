@@ -18,7 +18,6 @@ import numpy as np
 import random
 from copy import deepcopy
 import time
-import math
 
 BIFID_ALPHABET = 'AÀBCÇDEÉÈFGHIÍÏJKLMNOÓÒPQRSTUÚÜVWXYZ'
 NGRAM_SCORER = NGramScorer('catala_bigrams/ca_bigrams.csv')
@@ -151,7 +150,7 @@ def born2(population1, population2):
 
 
 
-def remove_duplicates(population):
+def remove_duplicates(population, verbose=True):
     seen = set()
     new_population = []
     k = 0
@@ -167,7 +166,7 @@ def remove_duplicates(population):
 
     new_population = sorted(new_population, key=lambda x: x[0], reverse=True)
 
-    print(f"Removed duplicates: {k}")
+    if verbose: print(f"Removed duplicates: {k}")
     return k, new_population
 
 
@@ -185,7 +184,7 @@ def generate_population(population_length):
 
 last_best_values = []
 
-def evolve(population, population_length):
+def evolve(population, population_length, verbose=True):
     global last_best_values
 
     elite = population[:population_length//20]
@@ -197,9 +196,9 @@ def evolve(population, population_length):
         child2 = born2(elite, commons)
         population.append(commit_key(child2))
 
-    print('Childs created')
+    if verbose: print('Childs created')
 
-    k, population = remove_duplicates(population)
+    k, population = remove_duplicates(population, verbose)
     injection = False
 
     # Diversity injection
@@ -208,7 +207,7 @@ def evolve(population, population_length):
         population += generate_population(population_length // 2)
         population = sorted(population, key=lambda x: x[0], reverse=True)
         injection = True
-        print('Diversity injected')
+        if verbose: print('Diversity injected')
 
     
     last_best_values.append(population[0][0])
@@ -218,12 +217,13 @@ def evolve(population, population_length):
         if np.all([x == last_best_values[-2] for x in last_best_values[-2:]]):
             population = population[:population_length]
 
-            for i in range(population_length // 100, population_length // 2 if injection else population_length):
+            for i in range(population_length // 200, population_length // 2 if injection else population_length):
                 population[i] = commit_key(change_key(population[i][1], probs=[0, 0.7, 0.9, 1]))
 
-            population.insert(1, commit_key(change_key(population[0][1], probs=[0, 0.7, 0.9, 1])))
-    
-            print('Population mutated')
+            for i in range(0, population_length // 200):
+                population.append(commit_key(change_key(population[0][1], probs=[0, 0.7, 0.9, 1])))
+
+            if verbose: print('Population mutated')
             last_best_values = [last_best_values[-1]]
 
             population = sorted(population, key=lambda x: x[0], reverse=True)
@@ -237,7 +237,7 @@ def evolve(population, population_length):
 
     population = sorted(population, key=lambda x: x[0], reverse=True)
 
-    print( population[0] )
+    if verbose: print( population[0] )
 
     return population[:population_length], population_length
 
@@ -319,7 +319,7 @@ def change_key(key, probs=[0.7, 0.8, 0.9, 1]):
     
 
 
-def evolutionary_attack(population_length,  max_iters=100):
+def evolutionary_attack(population_length,  max_iters=100, verbose=True):
     global ENCRYPTED_TEXT, plaintext_score, plaintext
 
     key0 = generate_random_key()
@@ -330,8 +330,8 @@ def evolutionary_attack(population_length,  max_iters=100):
 
     i = 0
     while i < max_iters:
-        print(f'\nEPOCH {i+1} ')
-        population, population_length = evolve(population, population_length)
+        print(f'\nEPOCH {i+1}')
+        population, population_length = evolve(population, population_length, verbose)
         i += 1
         if population[0][0] >= plaintext_score: break
 
@@ -339,7 +339,7 @@ def evolutionary_attack(population_length,  max_iters=100):
 
 
 
-with open('./datasets/catala_tests/test3.txt', 'r', encoding='UTF-8') as f:
+with open('./datasets/catala_tests/test1.txt', 'r', encoding='UTF-8') as f:
     plaintext = f.read()
 plaintext = preprocess_plaintext(plaintext)
 key0 = generate_random_key()
@@ -347,3 +347,5 @@ ENCRYPTED_TEXT = encrypt(plaintext, key0)
 plaintext_score = NGRAM_SCORER.score(plaintext)
 print(len(plaintext))
 print(plaintext_score)
+
+evolutionary_attack(500, 100)
