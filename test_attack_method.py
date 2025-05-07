@@ -1,12 +1,31 @@
-from bifid_cipher_ca import evolutionary_attack
+"""
+Michal Komsa
+Bifid Cipher
+
+File with tests of attacks.
+"""
+
+
+from bifid_cipher_ca import evolutionary_attack, preprocess_plaintext, generate_random_key, encrypt, NGRAM_SCORER
 from time import time
-from multiprocessing import Pool
+from multiprocessing import Pool, cpu_count
 import os
 
 def test_process(number):
 
+    with open('./datasets/catala_tests/test1.txt', 'r', encoding='UTF-8') as f:
+        plaintext = f.read()
+    plaintext = preprocess_plaintext(plaintext)
+
+    key0 = generate_random_key()
+    encrypted_text = encrypt(plaintext, key0)
+
+    plaintext_score = NGRAM_SCORER.score(plaintext)
+    print(len(plaintext))
+    print(plaintext_score)
+
     start = time()
-    res = evolutionary_attack(1000, 200, verbose=False)
+    res = evolutionary_attack(encrypted_text, 1000, 200, verbose=True)
     end = time() - start
 
     with open(f'test_results/{number}.txt', 'w+', encoding='UTF-8') as file:
@@ -17,9 +36,9 @@ def test_process(number):
 
 if __name__ == '__main__':
 
-    with Pool(processes=11) as pool:
+    with Pool(processes=cpu_count()-1) as pool:
         try:
-            pool.map(test_process, range(11))
+            pool.map(test_process, range(cpu_count()-1))
         except KeyboardInterrupt:
             pool.terminate()
             pool.join()
@@ -58,7 +77,7 @@ EN:
     Percentage of successes: 14/15 (93.33%)
     Mean time of success: ~81s
 
-CA: 
+CA (bigger alphabet, harder problem):
     Plaintext length: 1033
     Population length: 1000
     Epochs: 300
